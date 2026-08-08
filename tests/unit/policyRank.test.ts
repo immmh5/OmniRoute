@@ -17,10 +17,13 @@ function target(
   } as ResolvedComboTarget;
 }
 
-function deps(body: Record<string, unknown>): ResolveComboTargetPipelineDeps {
+function deps(
+  body: Record<string, unknown>,
+  comboName = "test-combo"
+): ResolveComboTargetPipelineDeps {
   return {
     body,
-    combo: {} as ResolveComboTargetPipelineDeps["combo"],
+    combo: { name: comboName } as ResolveComboTargetPipelineDeps["combo"],
     strategy: "auto",
     config: {} as ResolveComboTargetPipelineDeps["config"],
     apiKeyAllowedConnections: null,
@@ -67,5 +70,24 @@ describe("applyPolicyRank", () => {
     );
 
     expect(result.map((item) => item.connectionId)).toEqual([null, "hf-1", "hf-2", null]);
+  });
+
+  it("does not override the explicit Omni curated profile order", () => {
+    const targets = [
+      target("deepseek/deepseek", "deepseek"),
+      target("qwen/qwen3-coder", "hf", "hf-1"),
+      target("gemini/gemini-2.5-pro", "gemini"),
+    ];
+
+    const result = applyPolicyRank(
+      deps({ messages: [{ role: "user", content: "debug this code" }] }, "auto/omni-coding"),
+      targets
+    );
+
+    expect(result.map((item) => item.modelStr)).toEqual([
+      "deepseek/deepseek",
+      "qwen/qwen3-coder",
+      "gemini/gemini-2.5-pro",
+    ]);
   });
 });
