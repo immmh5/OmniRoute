@@ -39,24 +39,24 @@ function rankOf(values: string[] | undefined, value: string | undefined): number
 /**
  * Applies the operator-owned exact model allowlist/order for one curated auto id.
  *
- * Matching is deliberately exact. Unknown live models are retained only when the
- * curated profile has no matching models, so a stale profile cannot turn routing
- * into an empty pool. Stable ordering is preserved for ties.
+ * Matching is deliberately exact. When at least one configured model is live,
+ * unlisted models are excluded from the curated result. If none of the configured
+ * models is live, the function fails open to the original targets so stale config
+ * cannot turn routing into an empty pool. Stable ordering is preserved for ties.
  */
 export function applyCuratedProfile(
   profileId: string,
   targets: ResolvedComboTarget[]
 ): ResolvedComboTarget[] {
   const profile = getCuratedProfile(profileId);
-  if (!profile || targets.length < 2) return targets;
+  if (!profile || targets.length === 0) return targets;
 
   const modelSet = new Set(profile.models ?? []);
   const matching = targets.filter((target) => modelSet.has(target.modelStr));
 
-  // Fail open if the configured model IDs are not currently available.
   if (matching.length === 0) return targets;
 
-  const ordered = [...targets].sort((a, b) => {
+  return [...matching].sort((a, b) => {
     const aModel = rankOf(profile.models, a.modelStr);
     const bModel = rankOf(profile.models, b.modelStr);
     if (aModel !== bModel) return aModel - bModel;
@@ -73,6 +73,4 @@ export function applyCuratedProfile(
 
     return 0;
   });
-
-  return ordered;
 }
