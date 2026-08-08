@@ -84,3 +84,8 @@ export function applyCuratedProfile(
     return 0;
   });
 }
+
+/** Internal test helper: force the next profile read from disk. */
+export function resetCuratedRoutingConfigCacheForTests(): void {
+  cachedConfig = undefined;
+}
