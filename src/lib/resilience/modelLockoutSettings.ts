@@ -10,7 +10,7 @@ export interface ModelLockoutSettings {
 }
 
 export const DEFAULT_MODEL_LOCKOUT_SETTINGS: ModelLockoutSettings = {
-  enabled: false,
+  enabled: true,
   errorCodes: [403, 404, 429, 502, 503, 504],
   baseCooldownMs: 120_000,
   maxCooldownMs: 1_800_000,
@@ -73,7 +73,7 @@ export function resolveModelLockoutSettings(
       min: isTest ? 0 : 5_000,
       max: 3_600_000,
     }),
-    baseCooldownMs // cap must be >= base or exponential backoff is meaningless
+    baseCooldownMs
   );
 
   return {
