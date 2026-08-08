@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { classifyTask } from "../taskAwareRouting.ts";
 import { getCuratedProfile } from "../autoCombo/curatedRouting.ts";
@@ -16,15 +17,21 @@ type RoutingPolicy = Record<string, RoutingPolicyLevel>;
 
 let cachedPolicy: RoutingPolicy | null | undefined;
 
+function resolvePolicyPath(): string {
+  const configuredPath = process.env.OMNIROUTE_ROUTING_POLICY_PATH?.trim();
+  if (configuredPath) return path.resolve(configuredPath);
+
+  // `process.cwd()` can point at a standalone/packaged runtime directory rather
+  // than the repository root. Resolve the bundled config from this module too.
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(moduleDir, "../../../config/routing-policy.json");
+}
+
 function getPolicy(): RoutingPolicy | null {
   if (cachedPolicy !== undefined) return cachedPolicy;
 
   try {
-    const configuredPath = process.env.OMNIROUTE_ROUTING_POLICY_PATH?.trim();
-    const policyPath = configuredPath
-      ? path.resolve(configuredPath)
-      : path.resolve(process.cwd(), "config/routing-policy.json");
-    const parsed = JSON.parse(fs.readFileSync(policyPath, "utf8")) as unknown;
+    const parsed = JSON.parse(fs.readFileSync(resolvePolicyPath(), "utf8")) as unknown;
     cachedPolicy = parsed && typeof parsed === "object" ? (parsed as RoutingPolicy) : null;
   } catch {
     cachedPolicy = null;
