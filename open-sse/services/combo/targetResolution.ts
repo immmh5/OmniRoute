@@ -15,7 +15,8 @@
  *      request compatibility, context requirements
  *   8. task-aware reordering
  *   9. prompt-cache affinity application
- *  10. the parallel pre-screen (priority strategy only)
+ *  10. operator routing policy ranking
+ *  11. the parallel pre-screen (priority strategy only)
  *
  * Behaviour is byte-identical to the inline block it replaces — the two early exits
  * (context overflow, pipeline dispatch, auto-strategy `earlyResponse`) become an
@@ -61,6 +62,7 @@ import {
   resolvePromptCacheAffinityKey,
   shouldProtectOriginalFirst,
 } from "./promptCacheAffinity.ts";
+import { applyPolicyRank } from "./policyRank.ts";
 import {
   expandProviderWildcardsInCombo,
   expandProviderWildcardsInCollection,
@@ -743,6 +745,10 @@ export async function resolveComboTargetPipeline(
     continuity.sticky.stuck,
     autoUsedExplicitRouter
   );
+
+  // Operator policy is deliberately applied last so task-aware, eval, stickiness,
+  // and prompt-cache stages cannot silently override the explicit routing policy.
+  orderedTargets = applyPolicyRank(deps, orderedTargets);
 
   // Parallel pre-screen: check provider profiles and model availability for all targets
   // Only runs for priority strategy where sequential checking causes latency
