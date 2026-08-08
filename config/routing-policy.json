@@ -1,0 +1,38 @@
+{
+  "light": {
+    "modelRank": [
+      "gemini/gemini-3.1-flash-lite",
+      "qwen-cloud/qwen3.7-plus",
+      "deepseek/deepseek-v4-flash"
+    ],
+    "providerRank": ["gemini", "qwen-cloud", "deepseek", "qwen-web", "hf"],
+    "hfAccountsRank": []
+  },
+  "standard": {
+    "modelRank": [
+      "qwen-cloud/qwen3.7-plus",
+      "gemini/gemini-3-flash-preview",
+      "deepseek/deepseek-v4-flash"
+    ],
+    "providerRank": ["qwen-cloud", "gemini", "deepseek", "qwen-web", "hf"],
+    "hfAccountsRank": []
+  },
+  "heavy": {
+    "modelRank": [
+      "qwen-cloud/qwen3.7-max-2026-06-08",
+      "deepseek/deepseek-v4-pro",
+      "gemini/gemini-3.1-pro-preview"
+    ],
+    "providerRank": ["qwen-cloud", "deepseek", "gemini", "qwen-web", "hf"],
+    "hfAccountsRank": []
+  },
+  "critical": {
+    "modelRank": [
+      "deepseek/deepseek-v4-pro",
+      "qwen-cloud/qwen3.7-max-2026-06-08",
+      "gemini/gemini-3.1-pro-preview"
+    ],
+    "providerRank": ["deepseek", "qwen-cloud", "gemini", "qwen-web", "hf"],
+    "hfAccountsRank": []
+  }
+}
