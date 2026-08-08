@@ -32,6 +32,12 @@ export const AUTO_TEMPLATE_VARIANTS: Record<string, AutoVariant | undefined> = {
   "auto/coding": "coding",
   "auto/fast": "fast",
   "auto/chat": undefined,
+  // Omni curated profiles: same stable virtual-auto machinery, but with an
+  // operator-owned exact model allowlist/order applied at the end of resolution.
+  "auto/omni-coding": "coding",
+  "auto/omni-reasoning": "smart",
+  "auto/omni-fast": "fast",
+  "auto/omni-chat": undefined,
   // #4235 Phase A: these are valid variants (parseAutoPrefix accepts them) and
   // the README advertises them, but they were missing from this catalog so
   // `/v1/models` + the dashboard never listed them. Surface them explicitly.
@@ -48,7 +54,7 @@ export const AUTO_TEMPLATE_VARIANTS: Record<string, AutoVariant | undefined> = {
 
 /**
  * #4235 Phase B — curated `auto/<category>[:<tier>]` combos advertised in `/v1/models`
- * and the dashboard. ANY valid `auto/<category>:<tier>` resolves on demand (so clients
+ * and the dashboard. ANY valid `auto/<category>[:<tier>]` resolves on demand (so clients
  * can ask for combinations not listed here); this curated set keeps the advertised
  * catalog from exploding into the full category × tier matrix.
  */
