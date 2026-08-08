@@ -1,38 +1,41 @@
 {
   "light": {
     "modelRank": [
-      "gemini/gemini-3.1-flash-lite",
-      "qwen-cloud/qwen3.7-plus",
-      "deepseek/deepseek-v4-flash"
+      "gemini-cli/gemini-3.1-flash-lite-preview",
+      "if/qwen3-coder-plus",
+      "if/deepseek-v3.2"
     ],
-    "providerRank": ["integrately", "hf", "qwen-cloud", "gemini", "deepseek", "qwen-web"],
+    "providerRank": ["gemini-cli", "if", "cerebras", "groq", "cc", "gh"],
     "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
   },
   "standard": {
     "modelRank": [
-      "qwen-cloud/qwen3.7-plus",
-      "gemini/gemini-3-flash-preview",
-      "deepseek/deepseek-v4-flash"
+      "if/qwen3-coder-plus",
+      "gemini-cli/gemini-3-flash-preview",
+      "if/qwen3-max",
+      "if/deepseek-v3.2"
     ],
-    "providerRank": ["integrately", "hf", "qwen-cloud", "gemini", "deepseek", "qwen-web"],
+    "providerRank": ["if", "gemini-cli", "cc", "gh", "cerebras", "groq"],
     "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
   },
   "heavy": {
     "modelRank": [
-      "qwen-cloud/qwen3.7-max-2026-06-08",
-      "deepseek/deepseek-v4-pro",
-      "gemini/gemini-3.1-pro-preview"
+      "cc/claude-opus-4-7",
+      "gemini-cli/gemini-3.1-pro-preview",
+      "if/qwen3-max",
+      "if/deepseek-r1"
     ],
-    "providerRank": ["integrately", "hf", "qwen-cloud", "deepseek", "gemini", "qwen-web"],
+    "providerRank": ["cc", "gemini-cli", "if", "gh", "ds"],
     "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
   },
   "critical": {
     "modelRank": [
-      "deepseek/deepseek-v4-pro",
-      "qwen-cloud/qwen3.7-max-2026-06-08",
-      "gemini/gemini-3.1-pro-preview"
+      "cc/claude-opus-4-7",
+      "cx/gpt-5.5",
+      "gemini-cli/gemini-3.1-pro-preview",
+      "if/deepseek-r1"
     ],
-    "providerRank": ["integrately", "hf", "deepseek", "qwen-cloud", "gemini", "qwen-web"],
+    "providerRank": ["cc", "cx", "gemini-cli", "gh", "if", "ds"],
     "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
   }
 }
