@@ -33,7 +33,7 @@ export const AUTO_TEMPLATE_VARIANTS: Record<string, AutoVariant | undefined> = {
   "auto/coding": "coding",
   "auto/fast": "fast",
   "auto/chat": undefined,
-  // Omni curated profiles: same stable virtual-auto machinery, but with an
+  // Omni curated profiles: same virtual-auto machinery, but with an
   // operator-owned exact model allowlist/order and deterministic dispatch.
   "auto/omni-coding": "coding",
   "auto/omni-reasoning": "smart",
@@ -108,8 +108,8 @@ export function isRecognizedBuiltinAuto(modelStr: string, suffix: string): boole
  *
  * Non-`pro` `auto/*` ids (auto/coding, auto/best-*, auto/coding:free, …) keep
  * their advertised status; the candidate-pool filter in `virtualFactory` (#6512)
- * already excludes paid backends from them at request time. `auto/<family>` ids
- * are unaffected — the family is a backend selector, not a tier.
+ * already excludes paid backends from them at request time. Default behavior is
+ * fail-open when a curated profile has no currently available model.
  */
 export function isPaidTierAutoId(autoId: string): boolean {
   if (typeof autoId !== "string" || !autoId.startsWith("auto/")) return false;
@@ -124,40 +124,34 @@ function applyCuratedProfileToVirtualCombo(
   virtualCombo: Awaited<ReturnType<typeof import("./virtualFactory.ts").createVirtualAutoCombo>>
 ) {
   const profile = getCuratedProfile(modelStr);
-  if (!profile?.models?.length) return virtualCombo;
+  if (!profile?.models?.length || virtualCombo.models.length === 0) return virtualCombo;
 
-  const existingByModel = new Map(
+  const availableByModel = new Map(
     virtualCombo.models.map((entry) => [String((entry as Record<string, unknown>).model ?? ""), entry])
   );
-  const models = profile.models.map((model, index) => {
-    const existing = existingByModel.get(model);
-    if (existing) return existing;
 
-    const providerId = model.split("/", 1)[0] || "unknown";
-    return {
-      id: `omni-curated-${index + 1}-${providerId}`,
-      kind: "model" as const,
-      model,
-      providerId,
-      connectionId: null,
-      weight: 1,
-      label: providerId,
-    };
-  });
+  // Never manufacture a target for a configured model that is not currently
+  // connected. Only real candidates from the virtual factory may enter the curated
+  // combo. This is critical for OAuth/API-key rotation and prevents a stale config
+  // from creating guaranteed auth failures.
+  const selectedModels = profile.models
+    .map((model) => availableByModel.get(model))
+    .filter((entry): entry is (typeof virtualCombo.models)[number] => Boolean(entry));
 
-  // Curated profiles intentionally bypass the probabilistic auto scorer. The
-  // attempt loop gets an exact, deterministic model order and can still fall back
-  // through the remaining configured models when an upstream target fails.
-  virtualCombo.models = models;
+  // Fail open: if none of our configured models is currently available, keep the
+  // normal OmniRoute virtual-auto pool rather than returning an empty combo.
+  if (selectedModels.length === 0) return virtualCombo;
+
+  virtualCombo.models = selectedModels;
   virtualCombo.strategy = "priority";
   virtualCombo.routerStrategy = "rules";
   virtualCombo.explorationRate = 0;
-  virtualCombo.candidatePool = [
-    ...new Set(profile.models.map((model) => model.split("/", 1)[0]).filter(Boolean)),
-  ];
+
+  const providerPool = [...new Set(selectedModels.map((entry) => entry.providerId).filter(Boolean))];
+  virtualCombo.candidatePool = providerPool;
   virtualCombo.autoConfig = {
     ...(virtualCombo.autoConfig || {}),
-    candidatePool: virtualCombo.candidatePool,
+    candidatePool: providerPool,
     routerStrategy: "rules",
     explorationRate: 0,
   };
@@ -165,6 +159,7 @@ function applyCuratedProfileToVirtualCombo(
     ...(virtualCombo.config || {}),
     auto: virtualCombo.autoConfig,
   };
+
   return virtualCombo;
 }
 
