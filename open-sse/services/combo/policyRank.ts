@@ -73,6 +73,10 @@ function rankTargets(
  * profile at this same final pipeline stage, which makes the curated model order
  * authoritative even if an earlier stage (sticky/affinity/etc.) changed ordering.
  *
+ * Curated Omni profiles are strict when at least one configured model is live: only
+ * configured model IDs remain in the curated target set. If none are live, the
+ * profile fails open to the normal pool so a stale config cannot create an empty combo.
+ *
  * Priority is lexicographic: modelStr, provider, then HF connectionId.
  * Unlisted values receive Infinity and ties keep their original relative order.
  */
@@ -80,7 +84,7 @@ export function applyPolicyRank(
   deps: ResolveComboTargetPipelineDeps,
   targets: ResolvedComboTarget[]
 ): ResolvedComboTarget[] {
-  if (!Array.isArray(targets) || targets.length <= 1) return targets;
+  if (!Array.isArray(targets) || targets.length === 0) return targets;
 
   const comboName = typeof deps.combo?.name === "string" ? deps.combo.name : "";
 
@@ -88,15 +92,21 @@ export function applyPolicyRank(
     const curated = getCuratedProfile(comboName);
     if (!curated?.models?.length) return targets;
 
+    const allowed = new Set(curated.models);
+    const matching = targets.filter((target) => allowed.has(target.modelStr));
+
+    // Fail open only when none of the operator-selected models is currently live.
+    if (matching.length === 0) return targets;
+
     const ranked = rankTargets(
-      targets,
+      matching,
       curated.models,
       curated.providerRank,
       curated.hfAccountsRank
     );
     deps.log.info(
       "POLICY",
-      `Curated ${comboName} | exact model order applied to ${ranked.length} targets`
+      `Curated ${comboName} | exact model allowlist/order applied to ${ranked.length} targets`
     );
     return ranked;
   }
