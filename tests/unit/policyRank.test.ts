@@ -72,9 +72,10 @@ describe("applyPolicyRank", () => {
     expect(result.map((item) => item.connectionId)).toEqual([null, "hf-1", "hf-2", null]);
   });
 
-  it("does not override the explicit Omni curated profile order", () => {
+  it("keeps explicit Omni curated model order authoritative at the final stage", () => {
     const targets = [
       target("deepseek/deepseek", "deepseek"),
+      target("qwen/qwen3-coder", "hf", "hf-2"),
       target("qwen/qwen3-coder", "hf", "hf-1"),
       target("gemini/gemini-2.5-pro", "gemini"),
     ];
@@ -84,10 +85,11 @@ describe("applyPolicyRank", () => {
       targets
     );
 
-    expect(result.map((item) => item.modelStr)).toEqual([
-      "deepseek/deepseek",
-      "qwen/qwen3-coder",
-      "gemini/gemini-2.5-pro",
+    expect(result.map((item) => `${item.modelStr}:${item.connectionId ?? "none"}`)).toEqual([
+      "qwen/qwen3-coder:hf-1",
+      "qwen/qwen3-coder:hf-2",
+      "deepseek/deepseek:none",
+      "gemini/gemini-2.5-pro:none",
     ]);
   });
 });
