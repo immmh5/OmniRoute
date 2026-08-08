@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { classifyTask } from "../taskAwareRouting.ts";
 import { getCuratedProfile } from "../autoCombo/curatedRouting.ts";
+import { isRoutingTargetCooling } from "./resilience/routingResilience.ts";
 import type { ResolvedComboTarget } from "./types.ts";
 import type { ResolveComboTargetPipelineDeps } from "./targetResolution.ts";
 
@@ -77,8 +78,9 @@ function rankTargets(
  * configured model IDs remain in the curated target set. If none are live, the
  * profile fails open to the normal pool so a stale config cannot create an empty combo.
  *
- * Priority is lexicographic: modelStr, provider, then HF connectionId.
- * Unlisted values receive Infinity and ties keep their original relative order.
+ * Targets in the persistent resilience quarantine are removed here as a final gate.
+ * This is deliberately after ranking: a cooldown can never cause an unranked model
+ * to jump ahead of a healthy preferred model.
  */
 export function applyPolicyRank(
   deps: ResolveComboTargetPipelineDeps,
@@ -86,17 +88,28 @@ export function applyPolicyRank(
 ): ResolvedComboTarget[] {
   if (!Array.isArray(targets) || targets.length === 0) return targets;
 
+  const cooldownEnabled = deps.resilienceSettings.providerCooldown.enabled;
+  const healthyTargets = cooldownEnabled
+    ? targets.filter(
+        (target) =>
+          !isRoutingTargetCooling(target.provider, target.modelStr, target.connectionId ?? undefined)
+      )
+    : targets;
+
+  // Fail open when resilience state quarantines the whole pool. A persisted state
+  // file must never turn a temporary routing problem into a permanent outage.
+  const eligibleTargets = healthyTargets.length > 0 ? healthyTargets : targets;
   const comboName = typeof deps.combo?.name === "string" ? deps.combo.name : "";
 
   if (comboName.startsWith("auto/omni-")) {
     const curated = getCuratedProfile(comboName);
-    if (!curated?.models?.length) return targets;
+    if (!curated?.models?.length) return eligibleTargets;
 
     const allowed = new Set(curated.models);
-    const matching = targets.filter((target) => allowed.has(target.modelStr));
+    const matching = eligibleTargets.filter((target) => allowed.has(target.modelStr));
 
     // Fail open only when none of the operator-selected models is currently live.
-    if (matching.length === 0) return targets;
+    if (matching.length === 0) return eligibleTargets;
 
     const ranked = rankTargets(
       matching,
@@ -112,14 +125,14 @@ export function applyPolicyRank(
   }
 
   const policy = getPolicy();
-  if (!policy) return targets;
+  if (!policy) return eligibleTargets;
 
   const task = classifyTask(deps.body);
   const taskPolicy = policy[task.level];
-  if (!taskPolicy) return targets;
+  if (!taskPolicy) return eligibleTargets;
 
   const ranked = rankTargets(
-    targets,
+    eligibleTargets,
     taskPolicy.modelRank,
     taskPolicy.providerRank,
     taskPolicy.hfAccountsRank
@@ -127,7 +140,7 @@ export function applyPolicyRank(
 
   deps.log.info(
     "POLICY",
-    `Task: ${task.level} | Policy Rank applied to ${ranked.length} targets`
+    `Task: ${task.level} | Policy Rank applied to ${ranked.length} targets${healthyTargets.length !== targets.length ? ` (${targets.length - healthyTargets.length} cooling)` : ""}`
   );
   return ranked;
 }
