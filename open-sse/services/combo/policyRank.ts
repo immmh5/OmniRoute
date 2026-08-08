@@ -45,12 +45,19 @@ function rankOf(values: string[] | undefined, value: string | undefined): number
  * Unlisted values receive Infinity. The original relative order is retained for
  * ties, including all unranked targets. HF account ranking is intentionally scoped
  * to HF-vs-HF comparisons so account policy never changes another provider's order.
+ *
+ * `auto/omni-*` is intentionally excluded: those profiles are already an explicit,
+ * operator-owned model order and must remain authoritative rather than being
+ * reordered by the task-level fallback policy.
  */
 export function applyPolicyRank(
   deps: ResolveComboTargetPipelineDeps,
   targets: ResolvedComboTarget[]
 ): ResolvedComboTarget[] {
   if (!Array.isArray(targets) || targets.length <= 1) return targets;
+
+  const comboName = typeof deps.combo?.name === "string" ? deps.combo.name : "";
+  if (comboName.startsWith("auto/omni-")) return targets;
 
   const policy = getPolicy();
   if (!policy) return targets;
