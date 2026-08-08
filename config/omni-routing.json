@@ -2,40 +2,43 @@
   "profiles": {
     "auto/omni-coding": {
       "models": [
-        "qwen/qwen3-coder",
-        "deepseek/deepseek",
-        "gemini/gemini-2.5-pro"
+        "if/qwen3-coder-plus",
+        "cc/claude-sonnet-4-6",
+        "gemini-cli/gemini-3-flash-preview",
+        "if/deepseek-v3.2"
       ],
-      "providerRank": ["hf", "gemini", "integrately"],
-      "hfAccountsRank": ["hf-1", "hf-2"]
+      "providerRank": ["if", "cc", "gemini-cli", "ds"],
+      "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
     },
     "auto/omni-reasoning": {
       "models": [
-        "deepseek/deepseek",
-        "gemini/gemini-2.5-pro",
-        "qwen/qwen3-coder"
+        "cc/claude-opus-4-7",
+        "gemini-cli/gemini-3.1-pro-preview",
+        "if/qwen3-max",
+        "if/deepseek-r1"
       ],
-      "providerRank": ["gemini", "hf", "integrately"],
-      "hfAccountsRank": ["hf-1", "hf-2"]
+      "providerRank": ["cc", "gemini-cli", "if", "ds"],
+      "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
     },
     "auto/omni-fast": {
       "models": [
-        "gemini/gemini-2.5-flash",
-        "qwen/qwen3-coder",
-        "deepseek/deepseek"
+        "gemini-cli/gemini-3.1-flash-lite-preview",
+        "if/qwen3-coder-plus",
+        "if/qwen3-32b",
+        "cerebras/gpt-oss-120b"
       ],
-      "providerRank": ["gemini", "hf", "integrately"],
-      "hfAccountsRank": ["hf-1", "hf-2"]
+      "providerRank": ["gemini-cli", "if", "cerebras", "groq"],
+      "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
     },
     "auto/omni-chat": {
       "models": [
-        "gemini/gemini-2.5-flash",
-        "gemini/gemini-2.5-pro",
-        "qwen/qwen3-coder",
-        "deepseek/deepseek"
+        "gemini-cli/gemini-3-flash-preview",
+        "if/kimi-k2",
+        "if/qwen3-max",
+        "cc/claude-sonnet-4-6"
       ],
-      "providerRank": ["gemini", "hf", "integrately"],
-      "hfAccountsRank": ["hf-1", "hf-2"]
+      "providerRank": ["gemini-cli", "if", "cc", "gh"],
+      "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
     }
   }
 }
