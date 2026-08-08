@@ -19,8 +19,11 @@ function resolveConfigPath(): string {
   const configured = process.env.OMNIROUTE_OMNI_ROUTING_CONFIG_PATH?.trim();
   if (configured) return path.resolve(configured);
 
+  const cwdPath = path.resolve(process.cwd(), "config/omni-routing.json");
+  if (fs.existsSync(cwdPath)) return cwdPath;
+
   // `process.cwd()` is not guaranteed to be the repository root in Next.js
-  // standalone/packaged execution. Resolve from this module as a stable fallback.
+  // standalone/packaged execution. Resolve from this module as a source-tree fallback.
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(moduleDir, "../../../config/omni-routing.json");
 }
