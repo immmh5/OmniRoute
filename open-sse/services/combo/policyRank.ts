@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { classifyTask } from "../taskAwareRouting.ts";
+import { getCuratedProfile } from "../autoCombo/curatedRouting.ts";
 import type { ResolvedComboTarget } from "./types.ts";
 import type { ResolveComboTargetPipelineDeps } from "./targetResolution.ts";
 
@@ -38,43 +39,21 @@ function rankOf(values: string[] | undefined, value: string | undefined): number
   return index === -1 ? Number.POSITIVE_INFINITY : index;
 }
 
-/**
- * Apply the operator's exact-match ranking policy.
- *
- * Priority is lexicographic: modelStr, provider, then HF connectionId.
- * Unlisted values receive Infinity. The original relative order is retained for
- * ties, including all unranked targets. HF account ranking is intentionally scoped
- * to HF-vs-HF comparisons so account policy never changes another provider's order.
- *
- * `auto/omni-*` is intentionally excluded: those profiles are already an explicit,
- * operator-owned model order and must remain authoritative rather than being
- * reordered by the task-level fallback policy.
- */
-export function applyPolicyRank(
-  deps: ResolveComboTargetPipelineDeps,
-  targets: ResolvedComboTarget[]
+function rankTargets(
+  targets: ResolvedComboTarget[],
+  modelRank: string[] | undefined,
+  providerRank: string[] | undefined,
+  hfAccountsRank: string[] | undefined
 ): ResolvedComboTarget[] {
-  if (!Array.isArray(targets) || targets.length <= 1) return targets;
-
-  const comboName = typeof deps.combo?.name === "string" ? deps.combo.name : "";
-  if (comboName.startsWith("auto/omni-")) return targets;
-
-  const policy = getPolicy();
-  if (!policy) return targets;
-
-  const task = classifyTask(deps.body);
-  const taskPolicy = policy[task.level];
-  if (!taskPolicy) return targets;
-
-  const ranked = targets
+  return targets
     .map((target, index) => ({
       target,
       index,
-      modelRank: rankOf(taskPolicy.modelRank, target.modelStr),
-      providerRank: rankOf(taskPolicy.providerRank, target.provider),
+      modelRank: rankOf(modelRank, target.modelStr),
+      providerRank: rankOf(providerRank, target.provider),
       connectionRank:
         target.provider === "hf"
-          ? rankOf(taskPolicy.hfAccountsRank, target.connectionId ?? undefined)
+          ? rankOf(hfAccountsRank, target.connectionId ?? undefined)
           : Number.POSITIVE_INFINITY,
     }))
     .sort(
@@ -85,6 +64,56 @@ export function applyPolicyRank(
         a.index - b.index
     )
     .map(({ target }) => target);
+}
+
+/**
+ * Apply the operator's exact-match ranking policy.
+ *
+ * Normal auto/combos use the task-level policy. `auto/omni-*` uses its own curated
+ * profile at this same final pipeline stage, which makes the curated model order
+ * authoritative even if an earlier stage (sticky/affinity/etc.) changed ordering.
+ *
+ * Priority is lexicographic: modelStr, provider, then HF connectionId.
+ * Unlisted values receive Infinity and ties keep their original relative order.
+ */
+export function applyPolicyRank(
+  deps: ResolveComboTargetPipelineDeps,
+  targets: ResolvedComboTarget[]
+): ResolvedComboTarget[] {
+  if (!Array.isArray(targets) || targets.length <= 1) return targets;
+
+  const comboName = typeof deps.combo?.name === "string" ? deps.combo.name : "";
+
+  if (comboName.startsWith("auto/omni-")) {
+    const curated = getCuratedProfile(comboName);
+    if (!curated?.models?.length) return targets;
+
+    const ranked = rankTargets(
+      targets,
+      curated.models,
+      curated.providerRank,
+      curated.hfAccountsRank
+    );
+    deps.log.info(
+      "POLICY",
+      `Curated ${comboName} | exact model order applied to ${ranked.length} targets`
+    );
+    return ranked;
+  }
+
+  const policy = getPolicy();
+  if (!policy) return targets;
+
+  const task = classifyTask(deps.body);
+  const taskPolicy = policy[task.level];
+  if (!taskPolicy) return targets;
+
+  const ranked = rankTargets(
+    targets,
+    taskPolicy.modelRank,
+    taskPolicy.providerRank,
+    taskPolicy.hfAccountsRank
+  );
 
   deps.log.info(
     "POLICY",
