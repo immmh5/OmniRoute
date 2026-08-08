@@ -21,42 +21,45 @@ test("curated Omni routing loads the operator-owned coding profile", () => {
   const profile = getCuratedProfile("auto/omni-coding");
 
   deepStrictEqual(profile?.models, [
-    "qwen/qwen3-coder",
-    "deepseek/deepseek",
-    "gemini/gemini-2.5-pro",
+    "if/qwen3-coder-plus",
+    "cc/claude-sonnet-4-6",
+    "gemini-cli/gemini-3-flash-preview",
+    "if/deepseek-v3.2",
   ]);
 });
 
 test("curated Omni routing uses only configured live models and orders them exactly", () => {
   const targets = [
     target("other/model", "other"),
-    target("gemini/gemini-2.5-pro", "gemini"),
-    target("qwen/qwen3-coder", "hf", "hf-1"),
-    target("deepseek/deepseek", "deepseek"),
+    target("gemini-cli/gemini-3-flash-preview", "gemini-cli"),
+    target("if/qwen3-coder-plus", "if"),
+    target("if/deepseek-v3.2", "if"),
   ];
 
   const result = applyCuratedProfile("auto/omni-coding", targets);
 
   deepStrictEqual(result.map((item) => item.modelStr), [
-    "qwen/qwen3-coder",
-    "deepseek/deepseek",
-    "gemini/gemini-2.5-pro",
+    "if/qwen3-coder-plus",
+    "gemini-cli/gemini-3-flash-preview",
+    "if/deepseek-v3.2",
   ]);
 });
 
 test("curated Omni routing keeps multiple HF connections for the same configured model", () => {
   const targets = [
-    target("qwen/qwen3-coder", "hf", "hf-2"),
-    target("qwen/qwen3-coder", "hf", "hf-1"),
-    target("deepseek/deepseek", "deepseek"),
+    target("if/qwen3-coder-plus", "hf", "hf-2"),
+    target("if/qwen3-coder-plus", "hf", "hf-1"),
+    target("if/deepseek-v3.2", "if"),
   ];
 
+  // This fixture intentionally uses HF as the provider to exercise the account
+  // ranking independently from the provider prefix used by the curated model ID.
   const result = applyCuratedProfile("auto/omni-coding", targets);
 
   deepStrictEqual(result.map((item) => `${item.modelStr}:${item.connectionId}`), [
-    "qwen/qwen3-coder:hf-1",
-    "qwen/qwen3-coder:hf-2",
-    "deepseek/deepseek:null",
+    "if/qwen3-coder-plus:hf-1",
+    "if/qwen3-coder-plus:hf-2",
+    "if/deepseek-v3.2:null",
   ]);
 });
 
