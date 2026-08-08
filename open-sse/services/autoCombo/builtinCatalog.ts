@@ -2,6 +2,7 @@ import type { AutoVariant } from "./autoPrefix";
 import { VALID_VARIANTS } from "./autoPrefix";
 import { parseAutoSuffix } from "./suffixComposition";
 import { isValidModelFamily, AUTO_FAMILY_IDS } from "./modelFamily";
+import { getCuratedProfile } from "./curatedRouting.ts";
 
 export { AUTO_FAMILY_IDS };
 
@@ -33,7 +34,7 @@ export const AUTO_TEMPLATE_VARIANTS: Record<string, AutoVariant | undefined> = {
   "auto/fast": "fast",
   "auto/chat": undefined,
   // Omni curated profiles: same stable virtual-auto machinery, but with an
-  // operator-owned exact model allowlist/order applied at the end of resolution.
+  // operator-owned exact model allowlist/order and deterministic dispatch.
   "auto/omni-coding": "coding",
   "auto/omni-reasoning": "smart",
   "auto/omni-fast": "fast",
@@ -118,6 +119,55 @@ export function isPaidTierAutoId(autoId: string): boolean {
   return parsed.valid && parsed.tier === "pro";
 }
 
+function applyCuratedProfileToVirtualCombo(
+  modelStr: string,
+  virtualCombo: Awaited<ReturnType<typeof import("./virtualFactory.ts").createVirtualAutoCombo>>
+) {
+  const profile = getCuratedProfile(modelStr);
+  if (!profile?.models?.length) return virtualCombo;
+
+  const existingByModel = new Map(
+    virtualCombo.models.map((entry) => [String((entry as Record<string, unknown>).model ?? ""), entry])
+  );
+  const models = profile.models.map((model, index) => {
+    const existing = existingByModel.get(model);
+    if (existing) return existing;
+
+    const providerId = model.split("/", 1)[0] || "unknown";
+    return {
+      id: `omni-curated-${index + 1}-${providerId}`,
+      kind: "model" as const,
+      model,
+      providerId,
+      connectionId: null,
+      weight: 1,
+      label: providerId,
+    };
+  });
+
+  // Curated profiles intentionally bypass the probabilistic auto scorer. The
+  // attempt loop gets an exact, deterministic model order and can still fall back
+  // through the remaining configured models when an upstream target fails.
+  virtualCombo.models = models;
+  virtualCombo.strategy = "priority";
+  virtualCombo.routerStrategy = "rules";
+  virtualCombo.explorationRate = 0;
+  virtualCombo.candidatePool = [
+    ...new Set(profile.models.map((model) => model.split("/", 1)[0]).filter(Boolean)),
+  ];
+  virtualCombo.autoConfig = {
+    ...(virtualCombo.autoConfig || {}),
+    candidatePool: virtualCombo.candidatePool,
+    routerStrategy: "rules",
+    explorationRate: 0,
+  };
+  virtualCombo.config = {
+    ...(virtualCombo.config || {}),
+    auto: virtualCombo.autoConfig,
+  };
+  return virtualCombo;
+}
+
 export async function createBuiltinAutoCombo(modelStr: string, suffix: string) {
   const { createVirtualAutoCombo } = await import("./virtualFactory.ts");
 
@@ -127,7 +177,7 @@ export async function createBuiltinAutoCombo(modelStr: string, suffix: string) {
     const virtualCombo = await createVirtualAutoCombo(resolved.variant, spec);
     virtualCombo.name = modelStr;
     virtualCombo.id = modelStr;
-    return virtualCombo;
+    return applyCuratedProfileToVirtualCombo(modelStr, virtualCombo);
   }
 
   // #4235 Phase B: `auto/<category>[:<tier>]` (e.g. auto/coding:fast, auto/vision).
