@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert/strict";
 
-import { applyCuratedProfile, getCuratedProfile } from "../../open-sse/services/autoCombo/curatedRouting.ts";
+import {
+  applyCuratedProfile,
+  getCuratedProfile,
+  resetCuratedRoutingConfigCacheForTests,
+} from "../../open-sse/services/autoCombo/curatedRouting.ts";
 import type { ResolvedComboTarget } from "../../open-sse/services/combo/types.ts";
 
 function target(
@@ -26,6 +30,25 @@ test("curated Omni routing loads the operator-owned coding profile", () => {
     "gemini-cli/gemini-3-flash-preview",
     "if/deepseek-v3.2",
   ]);
+});
+
+test("curated Omni routing resolves config independently of process.cwd()", () => {
+  const originalCwd = process.cwd();
+  try {
+    process.chdir("/");
+    resetCuratedRoutingConfigCacheForTests();
+
+    const profile = getCuratedProfile("auto/omni-coding");
+    deepStrictEqual(profile?.models, [
+      "if/qwen3-coder-plus",
+      "cc/claude-sonnet-4-6",
+      "gemini-cli/gemini-3-flash-preview",
+      "if/deepseek-v3.2",
+    ]);
+  } finally {
+    process.chdir(originalCwd);
+    resetCuratedRoutingConfigCacheForTests();
+  }
 });
 
 test("curated Omni routing uses only configured live models and orders them exactly", () => {
