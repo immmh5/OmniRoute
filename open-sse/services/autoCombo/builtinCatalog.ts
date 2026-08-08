@@ -2,6 +2,7 @@ import type { AutoVariant } from "./autoPrefix";
 import { VALID_VARIANTS } from "./autoPrefix";
 import { parseAutoSuffix } from "./suffixComposition";
 import { isValidModelFamily, AUTO_FAMILY_IDS } from "./modelFamily";
+import { getCuratedProfile } from "./curatedRouting.ts";
 
 export { AUTO_FAMILY_IDS };
 
@@ -32,6 +33,12 @@ export const AUTO_TEMPLATE_VARIANTS: Record<string, AutoVariant | undefined> = {
   "auto/coding": "coding",
   "auto/fast": "fast",
   "auto/chat": undefined,
+  // Omni curated profiles: same stable virtual-auto machinery, but with an
+  // operator-owned exact model allowlist/order and deterministic dispatch.
+  "auto/omni-coding": "coding",
+  "auto/omni-reasoning": "smart",
+  "auto/omni-fast": "fast",
+  "auto/omni-chat": undefined,
   // #4235 Phase A: these are valid variants (parseAutoPrefix accepts them) and
   // the README advertises them, but they were missing from this catalog so
   // `/v1/models` + the dashboard never listed them. Surface them explicitly.
@@ -48,7 +55,7 @@ export const AUTO_TEMPLATE_VARIANTS: Record<string, AutoVariant | undefined> = {
 
 /**
  * #4235 Phase B — curated `auto/<category>[:<tier>]` combos advertised in `/v1/models`
- * and the dashboard. ANY valid `auto/<category>:<tier>` resolves on demand (so clients
+ * and the dashboard. ANY valid `auto/<category>[:<tier>]` resolves on demand (so clients
  * can ask for combinations not listed here); this curated set keeps the advertised
  * catalog from exploding into the full category × tier matrix.
  */
@@ -101,8 +108,8 @@ export function isRecognizedBuiltinAuto(modelStr: string, suffix: string): boole
  *
  * Non-`pro` `auto/*` ids (auto/coding, auto/best-*, auto/coding:free, …) keep
  * their advertised status; the candidate-pool filter in `virtualFactory` (#6512)
- * already excludes paid backends from them at request time. `auto/<family>` ids
- * are unaffected — the family is a backend selector, not a tier.
+ * already excludes paid backends from them at request time. Default behavior is
+ * fail-open when a curated profile has no currently available model.
  */
 export function isPaidTierAutoId(autoId: string): boolean {
   if (typeof autoId !== "string" || !autoId.startsWith("auto/")) return false;
@@ -110,6 +117,52 @@ export function isPaidTierAutoId(autoId: string): boolean {
   if (suffix.startsWith("pro-")) return true;
   const parsed = parseAutoSuffix(suffix);
   return parsed.valid && parsed.tier === "pro";
+}
+
+function applyCuratedProfileToVirtualCombo(
+  modelStr: string,
+  virtualCombo: Awaited<ReturnType<typeof import("./virtualFactory.ts").createVirtualAutoCombo>>
+) {
+  const profile = getCuratedProfile(modelStr);
+  if (!profile?.models?.length || virtualCombo.models.length === 0) return virtualCombo;
+
+  const allowedModels = new Set(profile.models);
+  const rank = new Map(profile.models.map((model, index) => [model, index]));
+
+  // Keep every real candidate for a configured model. In particular, do not
+  // collapse duplicate model IDs: separate HF connections/accounts must survive
+  // so the final HF account ranking can choose hf-1 before hf-2.
+  const selectedModels = virtualCombo.models
+    .filter((entry) => allowedModels.has(String((entry as Record<string, unknown>).model ?? "")))
+    .sort(
+      (a, b) =>
+        (rank.get(String((a as Record<string, unknown>).model ?? "")) ?? Number.POSITIVE_INFINITY) -
+        (rank.get(String((b as Record<string, unknown>).model ?? "")) ?? Number.POSITIVE_INFINITY)
+    );
+
+  // Fail open: if none of our configured models is currently available, keep the
+  // normal OmniRoute virtual-auto pool rather than returning an empty or auth-failing combo.
+  if (selectedModels.length === 0) return virtualCombo;
+
+  virtualCombo.models = selectedModels;
+  virtualCombo.strategy = "priority";
+  virtualCombo.routerStrategy = "rules";
+  virtualCombo.explorationRate = 0;
+
+  const providerPool = [...new Set(selectedModels.map((entry) => entry.providerId).filter(Boolean))];
+  virtualCombo.candidatePool = providerPool;
+  virtualCombo.autoConfig = {
+    ...(virtualCombo.autoConfig || {}),
+    candidatePool: providerPool,
+    routerStrategy: "rules",
+    explorationRate: 0,
+  };
+  virtualCombo.config = {
+    ...(virtualCombo.config || {}),
+    auto: virtualCombo.autoConfig,
+  };
+
+  return virtualCombo;
 }
 
 export async function createBuiltinAutoCombo(modelStr: string, suffix: string) {
@@ -121,7 +174,7 @@ export async function createBuiltinAutoCombo(modelStr: string, suffix: string) {
     const virtualCombo = await createVirtualAutoCombo(resolved.variant, spec);
     virtualCombo.name = modelStr;
     virtualCombo.id = modelStr;
-    return virtualCombo;
+    return applyCuratedProfileToVirtualCombo(modelStr, virtualCombo);
   }
 
   // #4235 Phase B: `auto/<category>[:<tier>]` (e.g. auto/coding:fast, auto/vision).

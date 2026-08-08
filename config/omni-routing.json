@@ -1,0 +1,44 @@
+{
+  "profiles": {
+    "auto/omni-coding": {
+      "models": [
+        "if/qwen3-coder-plus",
+        "cc/claude-sonnet-4-6",
+        "gemini-cli/gemini-3-flash-preview",
+        "if/deepseek-v3.2"
+      ],
+      "providerRank": ["if", "cc", "gemini-cli", "ds"],
+      "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
+    },
+    "auto/omni-reasoning": {
+      "models": [
+        "cc/claude-opus-4-7",
+        "gemini-cli/gemini-3.1-pro-preview",
+        "if/qwen3-max",
+        "if/deepseek-r1"
+      ],
+      "providerRank": ["cc", "gemini-cli", "if", "ds"],
+      "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
+    },
+    "auto/omni-fast": {
+      "models": [
+        "gemini-cli/gemini-3.1-flash-lite-preview",
+        "if/qwen3-coder-plus",
+        "if/qwen3-32b",
+        "cerebras/gpt-oss-120b"
+      ],
+      "providerRank": ["gemini-cli", "if", "cerebras", "groq"],
+      "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
+    },
+    "auto/omni-chat": {
+      "models": [
+        "gemini-cli/gemini-3-flash-preview",
+        "if/kimi-k2",
+        "if/qwen3-max",
+        "cc/claude-sonnet-4-6"
+      ],
+      "providerRank": ["gemini-cli", "if", "cc", "gh"],
+      "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "version": 2,
+  "description": "User-defined model ordering with health-aware fallback and per-target cooldowns.",
+  "light": {
+    "modelRank": [
+      "gemini-cli/gemini-3.1-flash-lite-preview",
+      "if/qwen3-coder-plus",
+      "if/deepseek-v3.2"
+    ],
+    "providerRank": ["gemini-cli", "if", "cerebras", "groq", "cc", "gh"],
+    "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
+  },
+  "standard": {
+    "modelRank": [
+      "if/qwen3-coder-plus",
+      "gemini-cli/gemini-3-flash-preview",
+      "if/qwen3-max",
+      "if/deepseek-v3.2"
+    ],
+    "providerRank": ["if", "gemini-cli", "cc", "gh", "cerebras", "groq"],
+    "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
+  },
+  "heavy": {
+    "modelRank": [
+      "cc/claude-opus-4-7",
+      "gemini-cli/gemini-3.1-pro-preview",
+      "if/qwen3-max",
+      "if/deepseek-r1"
+    ],
+    "providerRank": ["cc", "gemini-cli", "if", "gh", "ds"],
+    "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
+  },
+  "critical": {
+    "modelRank": [
+      "cc/claude-opus-4-7",
+      "cx/gpt-5.5",
+      "gemini-cli/gemini-3.1-pro-preview",
+      "if/deepseek-r1"
+    ],
+    "providerRank": ["cc", "cx", "gemini-cli", "gh", "if", "ds"],
+    "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
+  },
+  "fallback": {
+    "enabled": true,
+    "maxAttemptsPerRequest": 6,
+    "neverRetrySameModelInRequest": true,
+    "preferDifferentProviderAfterFailure": true,
+    "skipCoolingTargets": true,
+    "cooldown": {
+      "rate_limit": "6h",
+      "quota_exhausted": "6h",
+      "auth_error": "24h",
+      "permission_denied": "24h",
+      "model_not_found": "24h",
+      "timeout": "1h",
+      "connection_error": "30m",
+      "server_error": "30m",
+      "stream_error": "30m",
+      "empty_response": "1h",
+      "overloaded": "1h",
+      "bad_request": "15m",
+      "unknown": "15m"
+    },
+    "backoff": {
+      "enabled": true,
+      "base": "30s",
+      "max": "5m",
+      "jitter": true
+    }
+  }
+}

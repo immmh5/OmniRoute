@@ -1,0 +1,148 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { classifyTask } from "../taskAwareRouting.ts";
+import { getCuratedProfile } from "../autoCombo/curatedRouting.ts";
+import type { ResolvedComboTarget } from "./types.ts";
+import type { ResolveComboTargetPipelineDeps } from "./targetResolution.ts";
+
+type RoutingPolicyLevel = {
+  modelRank?: string[];
+  providerRank?: string[];
+  hfAccountsRank?: string[];
+};
+
+type RoutingPolicy = Record<string, RoutingPolicyLevel>;
+
+let cachedPolicy: RoutingPolicy | null | undefined;
+
+function resolvePolicyPath(): string {
+  const configuredPath = process.env.OMNIROUTE_ROUTING_POLICY_PATH?.trim();
+  if (configuredPath) return path.resolve(configuredPath);
+
+  const cwdPath = path.resolve(process.cwd(), "config/routing-policy.json");
+  if (fs.existsSync(cwdPath)) return cwdPath;
+
+  // `process.cwd()` can point at a standalone/packaged runtime directory rather
+  // than the repository root. Resolve the bundled config from this module too.
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(moduleDir, "../../../config/routing-policy.json");
+}
+
+function getPolicy(): RoutingPolicy | null {
+  if (cachedPolicy !== undefined) return cachedPolicy;
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(resolvePolicyPath(), "utf8")) as unknown;
+    cachedPolicy = parsed && typeof parsed === "object" ? (parsed as RoutingPolicy) : null;
+  } catch {
+    cachedPolicy = null;
+  }
+
+  return cachedPolicy;
+}
+
+function rankOf(values: string[] | undefined, value: string | undefined): number {
+  if (!Array.isArray(values) || !value) return Number.POSITIVE_INFINITY;
+  const index = values.indexOf(value);
+  return index === -1 ? Number.POSITIVE_INFINITY : index;
+}
+
+function rankTargets(
+  targets: ResolvedComboTarget[],
+  modelRank: string[] | undefined,
+  providerRank: string[] | undefined,
+  hfAccountsRank: string[] | undefined
+): ResolvedComboTarget[] {
+  return targets
+    .map((target, index) => ({
+      target,
+      index,
+      modelRank: rankOf(modelRank, target.modelStr),
+      providerRank: rankOf(providerRank, target.provider),
+      connectionRank:
+        target.provider === "hf"
+          ? rankOf(hfAccountsRank, target.connectionId ?? undefined)
+          : Number.POSITIVE_INFINITY,
+    }))
+    .sort(
+      (a, b) =>
+        a.modelRank - b.modelRank ||
+        a.providerRank - b.providerRank ||
+        a.connectionRank - b.connectionRank ||
+        a.index - b.index
+    )
+    .map(({ target }) => target);
+}
+
+/**
+ * Apply the operator's exact-match ranking policy.
+ *
+ * Normal auto/combos use the task-level policy. `auto/omni-*` uses its own curated
+ * profile at this same final pipeline stage, which makes the curated model order
+ * authoritative even if an earlier stage (sticky/affinity/etc.) changed ordering.
+ *
+ * Curated Omni profiles are strict when at least one configured model is live: only
+ * configured model IDs remain in the curated target set. If none are live, the
+ * profile fails open to the normal pool so a stale config cannot create an empty combo.
+ *
+ * Priority is lexicographic: modelStr, provider, then HF connectionId.
+ * Unlisted values receive Infinity and ties keep their original relative order.
+ */
+export function applyPolicyRank(
+  deps: ResolveComboTargetPipelineDeps,
+  targets: ResolvedComboTarget[]
+): ResolvedComboTarget[] {
+  if (!Array.isArray(targets) || targets.length === 0) return targets;
+
+  const comboName = typeof deps.combo?.name === "string" ? deps.combo.name : "";
+
+  if (comboName.startsWith("auto/omni-")) {
+    const curated = getCuratedProfile(comboName);
+    if (!curated?.models?.length) return targets;
+
+    const allowed = new Set(curated.models);
+    const matching = targets.filter((target) => allowed.has(target.modelStr));
+
+    // Fail open only when none of the operator-selected models is currently live.
+    if (matching.length === 0) return targets;
+
+    const ranked = rankTargets(
+      matching,
+      curated.models,
+      curated.providerRank,
+      curated.hfAccountsRank
+    );
+    deps.log.info(
+      "POLICY",
+      `Curated ${comboName} | exact model allowlist/order applied to ${ranked.length} targets`
+    );
+    return ranked;
+  }
+
+  const policy = getPolicy();
+  if (!policy) return targets;
+
+  const task = classifyTask(deps.body);
+  const taskPolicy = policy[task.level];
+  if (!taskPolicy) return targets;
+
+  const ranked = rankTargets(
+    targets,
+    taskPolicy.modelRank,
+    taskPolicy.providerRank,
+    taskPolicy.hfAccountsRank
+  );
+
+  deps.log.info(
+    "POLICY",
+    `Task: ${task.level} | Policy Rank applied to ${ranked.length} targets`
+  );
+  return ranked;
+}
+
+/** Internal test helper: clear the cached policy between isolated test cases. */
+export function resetPolicyRankCacheForTests(): void {
+  cachedPolicy = undefined;
+}
