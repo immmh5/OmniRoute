@@ -46,7 +46,6 @@ function hasUsefulValue(value: unknown): boolean {
     "error",
     "executableCode",
     "codeExecutionResult",
-    "usage",
   ]) {
     const candidate = value[key];
     if (hasNonEmptyString(candidate)) return true;
@@ -62,7 +61,6 @@ function hasUsefulValue(value: unknown): boolean {
     "function_call_output",
     "output",
     "content_block",
-    "response",
     "choices",
     "candidates",
     "parts",
@@ -77,6 +75,10 @@ function hasUsefulValue(value: unknown): boolean {
 function hasUsefulJsonPayload(payload: unknown): boolean {
   if (!isRecord(payload)) return false;
   return hasUsefulValue(payload);
+}
+
+function hasUsage(payload: unknown): boolean {
+  return isRecord(payload) && Object.keys(payload).length > 0;
 }
 
 function isPingEventType(type: string): boolean {
@@ -129,6 +131,49 @@ function isResponsesLifecycleEvent(eventType: string, payload: unknown): boolean
   return RESPONSES_LIFECYCLE_EVENTS.has(getPayloadType(payload, eventType));
 }
 
+/**
+ * A Responses API lifecycle envelope is not itself model output. `response.created`
+ * and `response.in_progress` contain useful metadata such as model/id, but handing
+ * those frames to the client would turn an upstream empty completion into HTTP 200.
+ * Only return true once the event contains actual text, reasoning, tool-call data,
+ * output items, or usage from the completed response.
+ */
+function hasResponsesOutputSignal(payload: unknown, eventType: string): boolean {
+  const type = getPayloadType(payload, eventType);
+  if (!isRecord(payload)) return false;
+
+  switch (type) {
+    case "response.created":
+    case "response.in_progress":
+    case "response.queued":
+      return false;
+    case "response.output_text.delta":
+    case "response.output_text.done":
+      return hasNonEmptyString(payload.delta) || hasNonEmptyString(payload.text);
+    case "response.function_call_arguments.delta":
+    case "response.function_call_arguments.done":
+    case "response.mcp_call_arguments.delta":
+    case "response.mcp_call_arguments.done":
+      return hasNonEmptyString(payload.delta) || hasNonEmptyString(payload.arguments);
+    case "response.output_item.added":
+    case "response.output_item.done":
+      return hasUsefulValue(payload.item);
+    case "response.content_part.added":
+    case "response.content_part.done":
+      return hasUsefulValue(payload.part) || hasUsefulValue(payload.content);
+    case "response.completed": {
+      const response = payload.response;
+      if (!isRecord(response)) return false;
+      if (hasNonEmptyString(response.output_text)) return true;
+      if (Array.isArray(response.output) && response.output.some(hasUsefulValue)) return true;
+      if (hasUsage(response.usage)) return true;
+      return false;
+    }
+    default:
+      return hasUsefulJsonPayload(payload);
+  }
+}
+
 function hasNonPingStructuredPayload(payload: unknown, eventType = ""): boolean {
   const type = getPayloadType(payload, eventType);
   if (isPingEventType(eventType) || isPingEventType(type)) return false;
@@ -138,11 +183,6 @@ function hasNonPingStructuredPayload(payload: unknown, eventType = ""): boolean 
     return !isErrorOnlyStructuredPayload(payload);
   }
   return payload !== null && payload !== undefined;
-}
-
-function hasResponsesOutputSignal(payload: unknown, eventType: string): boolean {
-  if (!isResponsesLifecycleEvent(eventType, payload)) return false;
-  return hasUsefulJsonPayload(payload);
 }
 
 export function hasUsefulStreamContent(text: string): boolean {
