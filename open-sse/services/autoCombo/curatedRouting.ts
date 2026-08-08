@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ResolvedComboTarget } from "../combo/types.ts";
 
 type CuratedProfile = {
@@ -14,12 +15,21 @@ type CuratedConfig = {
 
 let cachedConfig: CuratedConfig | null | undefined;
 
+function resolveConfigPath(): string {
+  const configured = process.env.OMNIROUTE_OMNI_ROUTING_CONFIG_PATH?.trim();
+  if (configured) return path.resolve(configured);
+
+  // `process.cwd()` is not guaranteed to be the repository root in Next.js
+  // standalone/packaged execution. Resolve from this module as a stable fallback.
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(moduleDir, "../../../config/omni-routing.json");
+}
+
 function loadConfig(): CuratedConfig | null {
   if (cachedConfig !== undefined) return cachedConfig;
 
   try {
-    const file = path.resolve(process.cwd(), "config/omni-routing.json");
-    cachedConfig = JSON.parse(fs.readFileSync(file, "utf8")) as CuratedConfig;
+    cachedConfig = JSON.parse(fs.readFileSync(resolveConfigPath(), "utf8")) as CuratedConfig;
   } catch {
     cachedConfig = null;
   }
