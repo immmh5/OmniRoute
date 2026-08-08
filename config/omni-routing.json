@@ -1,0 +1,41 @@
+{
+  "profiles": {
+    "auto/omni-coding": {
+      "models": [
+        "qwen/qwen3-coder",
+        "deepseek/deepseek",
+        "gemini/gemini-2.5-pro"
+      ],
+      "providerRank": ["hf", "gemini", "integrately"],
+      "hfAccountsRank": ["hf-1", "hf-2"]
+    },
+    "auto/omni-reasoning": {
+      "models": [
+        "deepseek/deepseek",
+        "gemini/gemini-2.5-pro",
+        "qwen/qwen3-coder"
+      ],
+      "providerRank": ["gemini", "hf", "integrately"],
+      "hfAccountsRank": ["hf-1", "hf-2"]
+    },
+    "auto/omni-fast": {
+      "models": [
+        "gemini/gemini-2.5-flash",
+        "qwen/qwen3-coder",
+        "deepseek/deepseek"
+      ],
+      "providerRank": ["gemini", "hf", "integrately"],
+      "hfAccountsRank": ["hf-1", "hf-2"]
+    },
+    "auto/omni-chat": {
+      "models": [
+        "gemini/gemini-2.5-flash",
+        "gemini/gemini-2.5-pro",
+        "qwen/qwen3-coder",
+        "deepseek/deepseek"
+      ],
+      "providerRank": ["gemini", "hf", "integrately"],
+      "hfAccountsRank": ["hf-1", "hf-2"]
+    }
+  }
+}
