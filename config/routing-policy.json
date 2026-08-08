@@ -5,8 +5,8 @@
       "qwen-cloud/qwen3.7-plus",
       "deepseek/deepseek-v4-flash"
     ],
-    "providerRank": ["gemini", "qwen-cloud", "deepseek", "qwen-web", "hf"],
-    "hfAccountsRank": []
+    "providerRank": ["integrately", "hf", "qwen-cloud", "gemini", "deepseek", "qwen-web"],
+    "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
   },
   "standard": {
     "modelRank": [
@@ -14,8 +14,8 @@
       "gemini/gemini-3-flash-preview",
       "deepseek/deepseek-v4-flash"
     ],
-    "providerRank": ["qwen-cloud", "gemini", "deepseek", "qwen-web", "hf"],
-    "hfAccountsRank": []
+    "providerRank": ["integrately", "hf", "qwen-cloud", "gemini", "deepseek", "qwen-web"],
+    "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
   },
   "heavy": {
     "modelRank": [
@@ -23,8 +23,8 @@
       "deepseek/deepseek-v4-pro",
       "gemini/gemini-3.1-pro-preview"
     ],
-    "providerRank": ["qwen-cloud", "deepseek", "gemini", "qwen-web", "hf"],
-    "hfAccountsRank": []
+    "providerRank": ["integrately", "hf", "qwen-cloud", "deepseek", "gemini", "qwen-web"],
+    "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
   },
   "critical": {
     "modelRank": [
@@ -32,7 +32,7 @@
       "qwen-cloud/qwen3.7-max-2026-06-08",
       "gemini/gemini-3.1-pro-preview"
     ],
-    "providerRank": ["deepseek", "qwen-cloud", "gemini", "qwen-web", "hf"],
-    "hfAccountsRank": []
+    "providerRank": ["integrately", "hf", "deepseek", "qwen-cloud", "gemini", "qwen-web"],
+    "hfAccountsRank": ["hf-1", "hf-2", "hf-3"]
   }
 }
