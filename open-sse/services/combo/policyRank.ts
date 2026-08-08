@@ -21,6 +21,9 @@ function resolvePolicyPath(): string {
   const configuredPath = process.env.OMNIROUTE_ROUTING_POLICY_PATH?.trim();
   if (configuredPath) return path.resolve(configuredPath);
 
+  const cwdPath = path.resolve(process.cwd(), "config/routing-policy.json");
+  if (fs.existsSync(cwdPath)) return cwdPath;
+
   // `process.cwd()` can point at a standalone/packaged runtime directory rather
   // than the repository root. Resolve the bundled config from this module too.
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
