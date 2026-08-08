@@ -37,31 +37,31 @@ function deps(
 
 test("applyPolicyRank matches modelStr exactly and preserves relative order for ties", () => {
   const targets = [
-    target("gemini/gemini-3.1-pro-preview", "gemini"),
-    target("qwen-cloud/qwen3.7-max-2026-06-08", "qwen-cloud"),
-    target("qwen-cloud/qwen3.7-plus", "qwen-cloud"),
-    target("qwen-cloud/qwen3.7-max-2026-06-08-extra", "qwen-cloud"),
+    target("if/qwen3-coder-plus", "if"),
+    target("gemini-cli/gemini-3.1-flash-lite-preview", "gemini-cli"),
+    target("if/deepseek-v3.2", "if"),
+    target("gemini-cli/gemini-3.1-flash-lite-preview-extra", "gemini-cli"),
   ];
 
   const result = applyPolicyRank(
-    deps({ messages: [{ role: "user", content: "debug this code" }] }),
+    deps({ messages: [{ role: "user", content: "hello" }] }),
     targets
   );
 
   deepStrictEqual(result.map((item) => item.modelStr), [
-    "qwen-cloud/qwen3.7-max-2026-06-08",
-    "gemini/gemini-3.1-pro-preview",
-    "qwen-cloud/qwen3.7-plus",
-    "qwen-cloud/qwen3.7-max-2026-06-08-extra",
+    "gemini-cli/gemini-3.1-flash-lite-preview",
+    "if/qwen3-coder-plus",
+    "if/deepseek-v3.2",
+    "gemini-cli/gemini-3.1-flash-lite-preview-extra",
   ]);
 });
 
 test("applyPolicyRank ranks HF accounts only within HF and keeps non-HF ordering intact", () => {
   const targets = [
-    target("qwen-cloud/qwen3.7-plus", "qwen-cloud"),
-    target("hf/Qwen/Qwen2.5-7B-Instruct", "hf", "hf-2"),
-    target("hf/Qwen/Qwen2.5-7B-Instruct", "hf", "hf-1"),
-    target("deepseek/deepseek-v4-flash", "deepseek"),
+    target("if/qwen3-coder-plus", "if"),
+    target("if/qwen3-coder-plus", "hf", "hf-2"),
+    target("if/qwen3-coder-plus", "hf", "hf-1"),
+    target("if/deepseek-v3.2", "if"),
   ];
 
   const result = applyPolicyRank(
@@ -74,10 +74,10 @@ test("applyPolicyRank ranks HF accounts only within HF and keeps non-HF ordering
 
 test("applyPolicyRank keeps explicit Omni curated model order authoritative at the final stage", () => {
   const targets = [
-    target("deepseek/deepseek", "deepseek"),
-    target("qwen/qwen3-coder", "hf", "hf-2"),
-    target("qwen/qwen3-coder", "hf", "hf-1"),
-    target("gemini/gemini-2.5-pro", "gemini"),
+    target("if/deepseek-v3.2", "if"),
+    target("if/qwen3-coder-plus", "hf", "hf-2"),
+    target("if/qwen3-coder-plus", "hf", "hf-1"),
+    target("gemini-cli/gemini-3-flash-preview", "gemini-cli"),
   ];
 
   const result = applyPolicyRank(
@@ -86,9 +86,9 @@ test("applyPolicyRank keeps explicit Omni curated model order authoritative at t
   );
 
   deepStrictEqual(result.map((item) => `${item.modelStr}:${item.connectionId ?? "none"}`), [
-    "qwen/qwen3-coder:hf-1",
-    "qwen/qwen3-coder:hf-2",
-    "deepseek/deepseek:none",
-    "gemini/gemini-2.5-pro:none",
+    "if/qwen3-coder-plus:hf-1",
+    "if/qwen3-coder-plus:hf-2",
+    "gemini-cli/gemini-3-flash-preview:none",
+    "if/deepseek-v3.2:none",
   ]);
 });
