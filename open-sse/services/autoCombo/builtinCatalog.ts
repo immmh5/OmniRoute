@@ -33,7 +33,7 @@ export const AUTO_TEMPLATE_VARIANTS: Record<string, AutoVariant | undefined> = {
   "auto/coding": "coding",
   "auto/fast": "fast",
   "auto/chat": undefined,
-  // Omni curated profiles: same virtual-auto machinery, but with an
+  // Omni curated profiles: same stable virtual-auto machinery, but with an
   // operator-owned exact model allowlist/order and deterministic dispatch.
   "auto/omni-coding": "coding",
   "auto/omni-reasoning": "smart",
@@ -126,20 +126,22 @@ function applyCuratedProfileToVirtualCombo(
   const profile = getCuratedProfile(modelStr);
   if (!profile?.models?.length || virtualCombo.models.length === 0) return virtualCombo;
 
-  const availableByModel = new Map(
-    virtualCombo.models.map((entry) => [String((entry as Record<string, unknown>).model ?? ""), entry])
-  );
+  const allowedModels = new Set(profile.models);
+  const rank = new Map(profile.models.map((model, index) => [model, index]));
 
-  // Never manufacture a target for a configured model that is not currently
-  // connected. Only real candidates from the virtual factory may enter the curated
-  // combo. This is critical for OAuth/API-key rotation and prevents a stale config
-  // from creating guaranteed auth failures.
-  const selectedModels = profile.models
-    .map((model) => availableByModel.get(model))
-    .filter((entry): entry is (typeof virtualCombo.models)[number] => Boolean(entry));
+  // Keep every real candidate for a configured model. In particular, do not
+  // collapse duplicate model IDs: separate HF connections/accounts must survive
+  // so the final HF account ranking can choose hf-1 before hf-2.
+  const selectedModels = virtualCombo.models
+    .filter((entry) => allowedModels.has(String((entry as Record<string, unknown>).model ?? "")))
+    .sort(
+      (a, b) =>
+        (rank.get(String((a as Record<string, unknown>).model ?? "")) ?? Number.POSITIVE_INFINITY) -
+        (rank.get(String((b as Record<string, unknown>).model ?? "")) ?? Number.POSITIVE_INFINITY)
+    );
 
   // Fail open: if none of our configured models is currently available, keep the
-  // normal OmniRoute virtual-auto pool rather than returning an empty combo.
+  // normal OmniRoute virtual-auto pool rather than returning an empty or auth-failing combo.
   if (selectedModels.length === 0) return virtualCombo;
 
   virtualCombo.models = selectedModels;
