@@ -27,7 +27,7 @@ describe("curated Omni routing", () => {
     ]);
   });
 
-  it("orders configured models exactly and keeps unknown live targets as fallback", () => {
+  it("uses only configured live models and orders them exactly", () => {
     const targets = [
       target("other/model", "other"),
       target("gemini/gemini-2.5-pro", "gemini"),
@@ -41,7 +41,22 @@ describe("curated Omni routing", () => {
       "qwen/qwen3-coder",
       "deepseek/deepseek",
       "gemini/gemini-2.5-pro",
-      "other/model",
+    ]);
+  });
+
+  it("keeps multiple HF connections for the same configured model", () => {
+    const targets = [
+      target("qwen/qwen3-coder", "hf", "hf-2"),
+      target("qwen/qwen3-coder", "hf", "hf-1"),
+      target("deepseek/deepseek", "deepseek"),
+    ];
+
+    const result = applyCuratedProfile("auto/omni-coding", targets);
+
+    expect(result.map((item) => `${item.modelStr}:${item.connectionId}`)).toEqual([
+      "qwen/qwen3-coder:hf-1",
+      "qwen/qwen3-coder:hf-2",
+      "deepseek/deepseek:null",
     ]);
   });
 
