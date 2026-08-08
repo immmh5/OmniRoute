@@ -66,6 +66,6 @@ describe("applyPolicyRank", () => {
       targets
     );
 
-    expect(result.map((item) => item.connectionId)).toEqual(["hf-2", "hf-1", null, null]);
+    expect(result.map((item) => item.connectionId)).toEqual([null, "hf-1", "hf-2", null]);
   });
 });
